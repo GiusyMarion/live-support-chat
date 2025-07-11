@@ -5,20 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supporto Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #f7f9fc; }
+        body { 
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc; 
+        }
         #chat-widget {
             position: fixed;
             bottom: 20px;
             right: 20px;
             width: 350px;
             height: 500px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 5px 25px rgba(0,0,0,0.15);
             border-radius: 15px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             transition: all 0.3s ease-in-out;
+            z-index: 1000;
         }
         #chat-bubble {
             position: fixed;
@@ -34,11 +39,25 @@
             justify-content: center;
             cursor: pointer;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease-in-out;
+            z-index: 1001;
         }
-        .hidden { display: none; }
+        #chat-bubble:hover {
+            transform: scale(1.1);
+        }
+        .hidden { 
+            transform: translateY(20px) scale(0.9);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .visible {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
     </style>
 </head>
-<body class="font-sans">
+<body>
 
     <!-- La "bolla" per aprire la chat -->
     <div id="chat-bubble">
@@ -58,132 +77,160 @@
         </header>
 
         <main id="chat-messages" class="flex-1 p-4 overflow-y-auto bg-gray-50">
-            <!-- Messaggi -->
+            <!-- I messaggi della chat verranno inseriti qui -->
         </main>
 
         <footer class="p-2 bg-white border-t">
             <form id="message-form" class="flex items-center">
                 <input type="text" id="message-input" placeholder="Scrivi una domanda..." autocomplete="off" class="border p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 flex-grow">
-                <button type="submit" id="send-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded-full ml-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                <button type="submit" id="send-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded-full ml-2 flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                 </button>
             </form>
         </footer>
     </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getFirestore, collection, doc, setDoc, addDoc, query, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <script type="module">
+        // Importa tutto il necessario da Firebase, inclusa l'autenticazione
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, query, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // La tua configurazione di Firebase (invariata)
-    const firebaseConfig = {
-        apiKey: "AIzaSyCy4AMQciSCQmChOzCGM5Ys40gYweCtTGw",
-        authDomain: "supporto-chat-sito.firebaseapp.com",
-        projectId: "supporto-chat-sito",
-        storageBucket: "supporto-chat-sito.appspot.com",
-        messagingSenderId: "253084607926",
-        appId: "1:253084607926:web:6b7f62e9e4246c14a28d17"
-    };
+        // La tua configurazione Firebase (assicurati sia corretta)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCy4AMQciSCQmChOzCGM5Ys40gYweCtTGw",
+            authDomain: "supporto-chat-sito.firebaseapp.com",
+            projectId: "supporto-chat-sito",
+            storageBucket: "supporto-chat-sito.appspot.com",
+            messagingSenderId: "253084607926",
+            appId: "1:253084607926:web:6b7f62e9e4246c14a28d17"
+        };
 
-    // Inizializzazione di Firebase (invariata)
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+        // Inizializza Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-    // Riferimenti DOM (invariati)
-    const chatBubble = document.getElementById('chat-bubble');
-    const chatWidget = document.getElementById('chat-widget');
-    const closeChat = document.getElementById('close-chat');
-    const chatMessages = document.getElementById('chat-messages');
-    const messageForm = document.getElementById('message-form');
-    const messageInput = document.getElementById('message-input');
+        // Riferimenti agli elementi del DOM
+        const chatBubble = document.getElementById('chat-bubble');
+        const chatWidget = document.getElementById('chat-widget');
+        const closeChat = document.getElementById('close-chat');
+        const chatMessages = document.getElementById('chat-messages');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
 
-    let visitorId = localStorage.getItem('visitorId');
-    if (!visitorId) {
-        visitorId = crypto.randomUUID();
-        localStorage.setItem('visitorId', visitorId);
-    }
+        let visitorId = null; // L'ID del visitatore (verrà dall'autenticazione)
+        let unsubscribeFromMessages = null; // Funzione per smettere di ascoltare i messaggi
 
-    let chatSessionInitialized = false;
-
-    // Gestione apertura/chiusura widget (invariata)
-    chatBubble.addEventListener('click', () => {
-        chatWidget.classList.remove('hidden');
-        chatBubble.classList.add('hidden');
-        initializeChat();
-    });
-
-    closeChat.addEventListener('click', () => {
-        chatWidget.classList.add('hidden');
-        chatBubble.classList.remove('hidden');
-    });
-
-    async function initializeChat() {
-        if (chatSessionInitialized) return;
-        
-        const sessionDocRef = doc(db, 'chats', visitorId);
-        await setDoc(sessionDocRef, { visitorId: visitorId }, { merge: true });
-
-        listenForMessages();
-        chatSessionInitialized = true;
-    }
-
-    messageForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const text = messageInput.value.trim();
-        if (text) {
-            try {
-                const sessionDocRef = doc(db, 'chats', visitorId);
-                const messagesColRef = collection(sessionDocRef, 'messages');
-                
-                await addDoc(messagesColRef, {
-                    text: text,
-                    sender: 'visitor',
-                    createdAt: serverTimestamp()
+        // Gestione stato autenticazione
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                // L'utente è autenticato (anche in modo anonimo)
+                console.log("Visitatore autenticato con UID:", user.uid);
+                visitorId = user.uid;
+            } else {
+                // L'utente non è autenticato, quindi eseguiamo il login anonimo
+                console.log("Nessun utente, tento il login anonimo...");
+                signInAnonymously(auth).catch(error => {
+                    console.error("Errore nel login anonimo:", error);
                 });
-                
-                // CORREZIONE 1: Corretto l'errore di battitura da sessionDoc_ref a sessionDocRef
-                await setDoc(sessionDocRef, {
-                    lastMessage: text,
-                    lastUpdate: serverTimestamp(),
-                }, { merge: true });
-
-                messageInput.value = '';
-            } catch (error) {
-                console.error("Errore durante l'invio del messaggio:", error);
             }
-        }
-    });
-
-    function listenForMessages() {
-        const messagesColRef = collection(db, 'chats', visitorId, 'messages');
-        // CORREZIONE 2: Corretto l'errore di battitura da messagesCol-ref a messagesColRef
-        const q = query(messagesColRef, orderBy("createdAt"));
-
-        onSnapshot(q, (snapshot) => {
-            chatMessages.innerHTML = '';
-            snapshot.forEach(doc => {
-                displayMessage(doc.data());
-            });
-
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, (error) => {
-            console.error("Errore nella ricezione dei messaggi:", error);
         });
-    }
 
-    // Funzione displayMessage (invariata)
-    function displayMessage(message) {
-        const el = document.createElement('div');
-        el.classList.add('mb-3', 'p-3', 'rounded-lg', 'max-w-xs', 'break-words');
-        
-        if (message.sender === 'visitor') {
-            el.classList.add('bg-blue-500', 'text-white', 'ml-auto');
-        } else {
-            el.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto');
+        // Gestione apertura/chiusura widget
+        chatBubble.addEventListener('click', () => {
+            chatWidget.classList.remove('hidden');
+            chatWidget.classList.add('visible');
+            chatBubble.style.display = 'none'; // Nascondi la bolla
+            initializeChat();
+        });
+
+        closeChat.addEventListener('click', () => {
+            chatWidget.classList.add('hidden');
+            chatWidget.classList.remove('visible');
+            chatBubble.style.display = 'flex'; // Mostra di nuovo la bolla
+        });
+
+        // Inizializza la chat e si mette in ascolto dei messaggi
+        async function initializeChat() {
+            if (!visitorId) {
+                console.warn("In attesa dell'ID visitatore...");
+                setTimeout(initializeChat, 500); // Riprova tra poco se l'ID non è ancora pronto
+                return;
+            }
+            
+            // Se stiamo già ascoltando, non fare nulla
+            if (unsubscribeFromMessages) return;
+
+            console.log(`Inizializzo la chat per ${visitorId}`);
+            
+            const sessionDocRef = doc(db, 'chats', visitorId);
+            // Crea o aggiorna il documento della sessione
+            await setDoc(sessionDocRef, { 
+                visitorId: visitorId,
+                lastUpdate: serverTimestamp() 
+            }, { merge: true });
+
+            // Mettiti in ascolto dei messaggi
+            const messagesColRef = collection(db, 'chats', visitorId, 'messages');
+            const q = query(messagesColRef, orderBy("createdAt"));
+
+            unsubscribeFromMessages = onSnapshot(q, (snapshot) => {
+                console.log("Nuovi messaggi ricevuti:", snapshot.docs.length);
+                chatMessages.innerHTML = ''; // Pulisci i messaggi vecchi
+                snapshot.forEach(doc => {
+                    displayMessage(doc.data());
+                });
+                // Scrolla fino in fondo
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, (error) => {
+                console.error("Errore nella ricezione dei messaggi:", error);
+            });
         }
-        el.textContent = message.text;
-        chatMessages.appendChild(el);
-    }
-</script>
+
+        // Gestione invio messaggio
+        messageForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = messageInput.value.trim();
+
+            if (text && visitorId) {
+                messageInput.value = ''; // Pulisci subito l'input
+                try {
+                    const sessionDocRef = doc(db, 'chats', visitorId);
+                    const messagesColRef = collection(sessionDocRef, 'messages');
+                    
+                    // Aggiungi il nuovo messaggio
+                    await addDoc(messagesColRef, {
+                        text: text,
+                        sender: 'visitor',
+                        createdAt: serverTimestamp()
+                    });
+                    
+                    // Aggiorna l'ultimo messaggio nella sessione per la dashboard
+                    await setDoc(sessionDocRef, {
+                        lastMessage: text,
+                        lastUpdate: serverTimestamp(),
+                    }, { merge: true });
+
+                } catch (error) {
+                    console.error("Errore durante l'invio del messaggio:", error);
+                }
+            }
+        });
+
+        // Funzione per mostrare un messaggio nella UI
+        function displayMessage(message) {
+            const el = document.createElement('div');
+            el.classList.add('mb-3', 'p-3', 'rounded-lg', 'max-w-xs', 'break-words', 'shadow-sm');
+            
+            if (message.sender === 'visitor') {
+                el.classList.add('bg-blue-500', 'text-white', 'ml-auto', 'rounded-br-none');
+            } else {
+                el.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto', 'rounded-bl-none');
+            }
+            el.textContent = message.text;
+            chatMessages.appendChild(el);
+        }
+    </script>
 </body>
 </html>
