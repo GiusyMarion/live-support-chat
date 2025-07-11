@@ -28,7 +28,7 @@
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background-color: #25eb7e;
+            background-color: #2563eb;
             color: white;
             width: 60px;
             height: 60px;
@@ -89,7 +89,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, query, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // **MODIFICA: Importata la funzione getDoc**
+        import { getFirestore, collection, doc, setDoc, addDoc, query, onSnapshot, orderBy, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCy4AMQciSCQmChOzCGM5Ys40gYweCtTGw",
@@ -168,14 +169,38 @@
                 setTimeout(initializeChat, 200);
                 return;
             }
-            if (unsubscribeFromMessages) return;
+            
+            if (unsubscribeFromMessages) unsubscribeFromMessages();
+            if (unsubscribeFromSession) unsubscribeFromSession();
 
             const sessionDocRef = doc(db, 'chats', visitorId);
-            await setDoc(sessionDocRef, { 
-                visitorId: visitorId,
-                visitorName: visitorName,
-                lastUpdate: serverTimestamp() 
-            }, { merge: true });
+            
+            // **MODIFICA: Controlla lo stato della chat prima di fare qualsiasi cosa**
+            const docSnap = await getDoc(sessionDocRef);
+
+            if (docSnap.exists() && docSnap.data().status === 'closed') {
+                // Se la chat era chiusa, la riapre
+                await setDoc(sessionDocRef, {
+                    status: 'active',
+                    lastMessage: 'Il visitatore ha riaperto la conversazione.',
+                    lastUpdate: serverTimestamp()
+                }, { merge: true });
+            } else {
+                // Altrimenti, la crea o la imposta come attiva
+                await setDoc(sessionDocRef, { 
+                    visitorId: visitorId,
+                    visitorName: visitorName,
+                    status: 'active',
+                    lastUpdate: serverTimestamp() 
+                }, { merge: true });
+            }
+            
+            // **MODIFICA: Riabilita i campi di input nel caso fossero disabilitati**
+            messageInput.placeholder = 'Scrivi una domanda...';
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            sendButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            sendButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
 
             unsubscribeFromSession = onSnapshot(sessionDocRef, (doc) => {
                 if (doc.exists() && doc.data().status === 'closed') {
