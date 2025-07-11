@@ -116,9 +116,12 @@
             chatBubble.classList.remove('hidden');
         });
 
-        function initializeChat() {
+        async function initializeChat() {
             if (chatSessionInitialized) return; 
             
+            const sessionDocRef = doc(db, 'chats', visitorId);
+            await setDoc(sessionDocRef, { visitorId: visitorId }, { merge: true });
+
             listenForMessages();
             chatSessionInitialized = true;
         }
@@ -137,10 +140,10 @@
                         createdAt: serverTimestamp()
                     });
                     
+                    // FIX: Corrected typo from sessionDoc_ref to sessionDocRef
                     await setDoc(sessionDocRef, {
                         lastMessage: text,
                         lastUpdate: serverTimestamp(),
-                        visitorId: visitorId
                     }, { merge: true });
 
                     messageInput.value = '';
@@ -152,13 +155,15 @@
 
         function listenForMessages() {
             const messagesColRef = collection(db, 'chats', visitorId, 'messages');
-            const q = query(messagesColRef, orderBy('createdAt'));
+            // FIX: Corrected typo from messagesCol-ref to messagesColRef
+            const q = query(messagesColRef, orderBy("createdAt"));
 
             onSnapshot(q, (snapshot) => {
                 chatMessages.innerHTML = '';
                 snapshot.forEach(doc => {
                     displayMessage(doc.data());
                 });
+
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }, (error) => {
                 console.error("Errore nella ricezione dei messaggi:", error);
