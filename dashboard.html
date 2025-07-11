@@ -97,25 +97,17 @@
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, query, onSnapshot, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // *******************************************************************
-        // INCOLLA QUI LA TUA CONFIGURAZIONE FIREBASE
-        // *******************************************************************
-// Import the functions you need from the SDKs you need
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCy4AMQciSCQmChOzCGM5Ys40gYweCtTGw",
+            authDomain: "supporto-chat-sito.firebaseapp.com",
+            projectId: "supporto-chat-sito",
+            storageBucket: "supporto-chat-sito.appspot.com",
+            messagingSenderId: "253084607926",
+            appId: "1:253084607926:web:6b7f62e9e4246c14a28d17"
+        };
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyCy4AMQciSCQmChOzCGM5Ys40gYweCtTGw",
-  authDomain: "supporto-chat-sito.firebaseapp.com",
-  projectId: "supporto-chat-sito",
-  storageBucket: "supporto-chat-sito.firebasestorage.app",
-  messagingSenderId: "253084607926",
-  appId: "1:253084607926:web:6b7f62e9e4246c14a28d17"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-        // *******************************************************************
-
+        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -296,6 +288,3 @@ const app = initializeApp(firebaseConfig);
     </script>
 </body>
 </html>
-```
-
-Come puoi vedere, ho aggiunto le funzionalità basate su Gemini a entrambi i lati dell'applicazione. Ora il visitatore riceve suggerimenti su cosa rispondere e il tecnico può ottenere un riassunto rapido della conversazione con un solo cl
