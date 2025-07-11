@@ -36,9 +36,6 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
         .hidden { display: none; }
-        #smart-replies-container::-webkit-scrollbar {
-            display: none; /* Nasconde la scrollbar per un look più pulito */
-        }
     </style>
 </head>
 <body class="font-sans">
@@ -71,23 +68,19 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                 </button>
             </form>
-             <!-- ✨ Smart Replies Container -->
-            <div id="smart-replies-container" class="pt-2 px-2 flex gap-2 overflow-x-auto">
-                <!-- Smart replies verranno iniettate qui -->
-            </div>
         </footer>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, query, onSnapshot, orderBy, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, query, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Your web app's Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCy4AMQciSCQmChOzCGM5Ys40gYweCtTGw",
             authDomain: "supporto-chat-sito.firebaseapp.com",
             projectId: "supporto-chat-sito",
-            storageBucket: "supporto-chat-sito.appspot.com", // CORRETTO
+            storageBucket: "supporto-chat-sito.appspot.com",
             messagingSenderId: "253084607926",
             appId: "1:253084607926:web:6b7f62e9e4246c14a28d17"
         };
@@ -102,7 +95,6 @@
         const chatMessages = document.getElementById('chat-messages');
         const messageForm = document.getElementById('message-form');
         const messageInput = document.getElementById('message-input');
-        const smartRepliesContainer = document.getElementById('smart-replies-container');
 
         let visitorId = localStorage.getItem('visitorId');
         if (!visitorId) {
@@ -110,8 +102,7 @@
             localStorage.setItem('visitorId', visitorId);
         }
 
-        let chatSessionRef = null;
-        let conversationHistory = [];
+        let chatSessionInitialized = false;
 
         // Gestione apertura/chiusura widget
         chatBubble.addEventListener('click', () => {
@@ -126,48 +117,39 @@
         });
 
         async function initializeChat() {
-            if (chatSessionRef) return; // Inizializza solo una volta
+            if (chatSessionInitialized) return; // Inizializza solo una volta
             
-            chatSessionRef = doc(db, 'chats', visitorId);
-            
-            await setDoc(chatSessionRef, { 
-                visitorId: visitorId,
-                createdAt: serverTimestamp(),
-                lastMessage: "Nuova conversazione iniziata."
-            }, { merge: true });
-
             listenForMessages();
-        }
-        
-        async function sendMessage(text) {
-             if (text) {
-                const messagesColRef = collection(db, 'chats', visitorId, 'messages');
-                await addDoc(messagesColRef, {
-                    text: text,
-                    sender: 'visitor',
-                    createdAt: serverTimestamp()
-                });
-                
-                await updateDoc(chatSessionRef, {
-                    lastMessage: text,
-                    lastUpdate: serverTimestamp()
-                });
-
-                messageInput.value = '';
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-                clearSmartReplies();
-            }
+            chatSessionInitialized = true;
         }
 
         messageForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const text = messageInput.value.trim();
-            sendMessage(text);
-        });
-        
-        messageInput.addEventListener('input', () => {
-            if(messageInput.value.trim() !== '') {
-                clearSmartReplies();
+            if (text) {
+                try {
+                    const sessionDocRef = doc(db, 'chats', visitorId);
+                    const messagesColRef = collection(sessionDocRef, 'messages');
+                    
+                    // Aggiunge il nuovo messaggio
+                    await addDoc(messagesColRef, {
+                        text: text,
+                        sender: 'visitor',
+                        createdAt: serverTimestamp()
+                    });
+                    
+                    // Crea o aggiorna il documento principale della chat
+                    await setDoc(sessionDocRef, {
+                        lastMessage: text,
+                        lastUpdate: serverTimestamp(),
+                        visitorId: visitorId
+                    }, { merge: true });
+
+                    messageInput.value = '';
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                } catch (error) {
+                    console.error("Errore durante l'invio del messaggio:", error);
+                }
             }
         });
 
@@ -177,18 +159,12 @@
 
             onSnapshot(q, (snapshot) => {
                 chatMessages.innerHTML = '';
-                conversationHistory = [];
                 snapshot.forEach(doc => {
-                    const messageData = doc.data();
-                    displayMessage(messageData);
-                    conversationHistory.push(messageData);
+                    displayMessage(doc.data());
                 });
                 chatMessages.scrollTop = chatMessages.scrollHeight;
-
-                const lastMessage = conversationHistory[conversationHistory.length - 1];
-                if (lastMessage && lastMessage.sender === 'technician') {
-                    fetchSmartReplies(conversationHistory);
-                }
+            }, (error) => {
+                console.error("Errore nella ricezione dei messaggi:", error);
             });
         }
 
@@ -205,75 +181,6 @@
             }
             chatMessages.appendChild(el);
         }
-        
-        function clearSmartReplies() {
-            smartRepliesContainer.innerHTML = '';
-        }
-
-        async function fetchSmartReplies(history) {
-            clearSmartReplies();
-            smartRepliesContainer.innerHTML = `<p class="text-xs text-gray-400">✨ Sto pensando a una risposta...</p>`;
-
-            const formattedHistory = history.slice(-5).map(msg => `${msg.sender === 'visitor' ? 'Visitatore' : 'Tecnico'}: ${msg.text}`).join('\n');
-            const prompt = `Basandoti su questa conversazione di supporto, genera 3 risposte brevi e pertinenti per il Visitatore. Le risposte devono essere concise (massimo 5 parole). Non includere virgolette.\n\nCONVERSAZIONE:\n${formattedHistory}`;
-            
-            const payload = {
-              contents: [{ role: "user", parts: [{ text: prompt }] }],
-              generationConfig: {
-                  responseMimeType: "application/json",
-                  responseSchema: {
-                      type: "OBJECT",
-                      properties: {
-                          replies: {
-                              type: "ARRAY",
-                              items: { type: "STRING" }
-                          }
-                      }
-                  }
-              }
-            };
-
-            try {
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                if (result.candidates && result.candidates[0].content.parts[0].text) {
-                    const jsonResponse = JSON.parse(result.candidates[0].content.parts[0].text);
-                    displaySmartReplies(jsonResponse.replies);
-                } else {
-                     clearSmartReplies();
-                }
-            } catch (error) {
-                console.error("Errore nel generare smart replies:", error);
-                clearSmartReplies();
-            }
-        }
-
-        function displaySmartReplies(replies) {
-            clearSmartReplies();
-            if (!replies || replies.length === 0) return;
-
-            replies.forEach(replyText => {
-                const button = document.createElement('button');
-                button.textContent = replyText;
-                button.className = "text-sm border border-blue-500 text-blue-500 rounded-full px-3 py-1 whitespace-nowrap hover:bg-blue-100";
-                button.onclick = () => {
-                    sendMessage(replyText);
-                };
-                smartRepliesContainer.appendChild(button);
-            });
-        }
-
     </script>
 </body>
 </html>
