@@ -82,23 +82,17 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, collection, doc, setDoc, addDoc, query, onSnapshot, orderBy, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // *******************************************************************
-        // INCOLLA QUI LA TUA CONFIGURAZIONE FIREBASE
-        // *******************************************************************
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyCy4AMQciSCQmChOzCGM5Ys40gYweCtTGw",
-  authDomain: "supporto-chat-sito.firebaseapp.com",
-  projectId: "supporto-chat-sito",
-  storageBucket: "supporto-chat-sito.firebasestorage.app",
-  messagingSenderId: "253084607926",
-  appId: "1:253084607926:web:6b7f62e9e4246c14a28d17"
-};
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCy4AMQciSCQmChOzCGM5Ys40gYweCtTGw",
+            authDomain: "supporto-chat-sito.firebaseapp.com",
+            projectId: "supporto-chat-sito",
+            storageBucket: "supporto-chat-sito.appspot.com",
+            messagingSenderId: "253084607926",
+            appId: "1:253084607926:web:6b7f62e9e4246c14a28d17"
+        };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-        // *******************************************************************
-
+        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
