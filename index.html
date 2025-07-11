@@ -45,58 +45,56 @@
         #chat-bubble:hover {
             transform: scale(1.1);
         }
-        .hidden { 
-            transform: translateY(20px) scale(0.9);
-            opacity: 0;
-            pointer-events: none;
-        }
-        .visible {
-            transform: translateY(0) scale(1);
-            opacity: 1;
-            pointer-events: auto;
-        }
+        .hidden-view { display: none; }
     </style>
 </head>
 <body>
 
-    <!-- La "bolla" per aprire la chat -->
     <div id="chat-bubble">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
     </div>
 
-    <!-- Il widget della chat, inizialmente nascosto -->
-    <div id="chat-widget" class="hidden">
+    <div id="chat-widget" class="hidden-view">
         <header class="bg-blue-600 text-white p-4 text-left flex justify-between items-center">
-            <div>
+            <div id="chat-header-content">
                 <h1 class="text-lg font-bold">Supporto Live</h1>
                 <p class="text-xs">Siamo qui per aiutarti!</p>
             </div>
             <button id="close-chat" class="text-white text-2xl leading-none">&times;</button>
         </header>
 
-        <main id="chat-messages" class="flex-1 p-4 overflow-y-auto bg-gray-50">
-            <!-- I messaggi della chat verranno inseriti qui -->
-        </main>
+        <!-- Schermata per chiedere il nome -->
+        <div id="name-capture-screen" class="p-6 flex-1 flex flex-col justify-center items-center bg-gray-50">
+             <h2 class="text-xl font-bold mb-4 text-gray-800">Benvenuto!</h2>
+             <p class="text-gray-600 mb-6 text-center">Inserisci il tuo nome per iniziare a chattare con il nostro team.</p>
+             <form id="name-capture-form" class="w-full">
+                 <input type="text" id="name-input" placeholder="Il tuo nome..." class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+                 <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors mt-4 font-bold">Inizia Chat</button>
+             </form>
+        </div>
 
-        <footer class="p-2 bg-white border-t">
-            <form id="message-form" class="flex items-center">
-                <input type="text" id="message-input" placeholder="Scrivi una domanda..." autocomplete="off" class="border p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 flex-grow">
-                <button type="submit" id="send-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded-full ml-2 flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                </button>
-            </form>
-        </footer>
+        <!-- Schermata della chat principale -->
+        <div id="chat-screen" class="hidden-view flex-1 flex flex-col">
+            <main id="chat-messages" class="flex-1 p-4 overflow-y-auto bg-gray-50">
+            </main>
+            <footer class="p-2 bg-white border-t">
+                <form id="message-form" class="flex items-center">
+                    <input type="text" id="message-input" placeholder="Scrivi una domanda..." autocomplete="off" class="border p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 flex-grow">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded-full ml-2 flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                    </button>
+                </form>
+            </footer>
+        </div>
     </div>
 
     <script type="module">
-        // Importa tutto il necessario da Firebase, inclusa l'autenticazione
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, addDoc, query, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // La tua configurazione Firebase (assicurati sia corretta)
         const firebaseConfig = {
             apiKey: "AIzaSyCy4AMQciSCQmChOzCGM5Ys40gYweCtTGw",
             authDomain: "supporto-chat-sito.firebaseapp.com",
@@ -106,123 +104,114 @@
             appId: "1:253084607926:web:6b7f62e9e4246c14a28d17"
         };
 
-        // Inizializza Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Riferimenti agli elementi del DOM
         const chatBubble = document.getElementById('chat-bubble');
         const chatWidget = document.getElementById('chat-widget');
         const closeChat = document.getElementById('close-chat');
+        const nameCaptureScreen = document.getElementById('name-capture-screen');
+        const nameCaptureForm = document.getElementById('name-capture-form');
+        const nameInput = document.getElementById('name-input');
+        const chatScreen = document.getElementById('chat-screen');
         const chatMessages = document.getElementById('chat-messages');
         const messageForm = document.getElementById('message-form');
         const messageInput = document.getElementById('message-input');
+        const chatHeaderContent = document.getElementById('chat-header-content');
 
-        let visitorId = null; // L'ID del visitatore (verrà dall'autenticazione)
-        let unsubscribeFromMessages = null; // Funzione per smettere di ascoltare i messaggi
+        let visitorId = null;
+        let visitorName = localStorage.getItem('visitorName');
+        let unsubscribeFromMessages = null;
 
-        // Gestione stato autenticazione
         onAuthStateChanged(auth, user => {
             if (user) {
-                // L'utente è autenticato (anche in modo anonimo)
-                console.log("Visitatore autenticato con UID:", user.uid);
                 visitorId = user.uid;
             } else {
-                // L'utente non è autenticato, quindi eseguiamo il login anonimo
-                console.log("Nessun utente, tento il login anonimo...");
-                signInAnonymously(auth).catch(error => {
-                    console.error("Errore nel login anonimo:", error);
-                });
+                signInAnonymously(auth).catch(error => console.error("Errore login anonimo:", error));
             }
         });
 
-        // Gestione apertura/chiusura widget
         chatBubble.addEventListener('click', () => {
-            chatWidget.classList.remove('hidden');
-            chatWidget.classList.add('visible');
-            chatBubble.style.display = 'none'; // Nascondi la bolla
-            initializeChat();
+            chatWidget.classList.remove('hidden-view');
+            chatBubble.classList.add('hidden-view');
+            if (visitorName) {
+                showChatScreen();
+            }
         });
 
         closeChat.addEventListener('click', () => {
-            chatWidget.classList.add('hidden');
-            chatWidget.classList.remove('visible');
-            chatBubble.style.display = 'flex'; // Mostra di nuovo la bolla
+            chatWidget.classList.add('hidden-view');
+            chatBubble.classList.remove('hidden-view');
         });
 
-        // Inizializza la chat e si mette in ascolto dei messaggi
+        nameCaptureForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = nameInput.value.trim();
+            if (name) {
+                visitorName = name;
+                localStorage.setItem('visitorName', visitorName);
+                showChatScreen();
+            }
+        });
+        
+        function showChatScreen() {
+            nameCaptureScreen.classList.add('hidden-view');
+            chatScreen.classList.remove('hidden-view');
+            chatHeaderContent.innerHTML = `<h1 class="text-lg font-bold">Ciao, ${visitorName}!</h1><p class="text-xs">Come possiamo aiutarti?</p>`;
+            initializeChat();
+        }
+
         async function initializeChat() {
-            if (!visitorId) {
-                console.warn("In attesa dell'ID visitatore...");
-                setTimeout(initializeChat, 500); // Riprova tra poco se l'ID non è ancora pronto
+            if (!visitorId || !visitorName) {
+                setTimeout(initializeChat, 200);
                 return;
             }
-            
-            // Se stiamo già ascoltando, non fare nulla
             if (unsubscribeFromMessages) return;
 
-            console.log(`Inizializzo la chat per ${visitorId}`);
-            
             const sessionDocRef = doc(db, 'chats', visitorId);
-            // Crea o aggiorna il documento della sessione
             await setDoc(sessionDocRef, { 
                 visitorId: visitorId,
+                visitorName: visitorName,
                 lastUpdate: serverTimestamp() 
             }, { merge: true });
 
-            // Mettiti in ascolto dei messaggi
             const messagesColRef = collection(db, 'chats', visitorId, 'messages');
             const q = query(messagesColRef, orderBy("createdAt"));
 
             unsubscribeFromMessages = onSnapshot(q, (snapshot) => {
-                console.log("Nuovi messaggi ricevuti:", snapshot.docs.length);
-                chatMessages.innerHTML = ''; // Pulisci i messaggi vecchi
-                snapshot.forEach(doc => {
-                    displayMessage(doc.data());
-                });
-                // Scrolla fino in fondo
+                chatMessages.innerHTML = '';
+                snapshot.forEach(doc => displayMessage(doc.data()));
                 chatMessages.scrollTop = chatMessages.scrollHeight;
-            }, (error) => {
-                console.error("Errore nella ricezione dei messaggi:", error);
-            });
+            }, (error) => console.error("Errore ricezione messaggi:", error));
         }
 
-        // Gestione invio messaggio
         messageForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const text = messageInput.value.trim();
-
             if (text && visitorId) {
-                messageInput.value = ''; // Pulisci subito l'input
+                messageInput.value = '';
                 try {
                     const sessionDocRef = doc(db, 'chats', visitorId);
                     const messagesColRef = collection(sessionDocRef, 'messages');
-                    
-                    // Aggiungi il nuovo messaggio
                     await addDoc(messagesColRef, {
                         text: text,
                         sender: 'visitor',
                         createdAt: serverTimestamp()
                     });
-                    
-                    // Aggiorna l'ultimo messaggio nella sessione per la dashboard
                     await setDoc(sessionDocRef, {
                         lastMessage: text,
                         lastUpdate: serverTimestamp(),
                     }, { merge: true });
-
                 } catch (error) {
-                    console.error("Errore durante l'invio del messaggio:", error);
+                    console.error("Errore invio messaggio:", error);
                 }
             }
         });
 
-        // Funzione per mostrare un messaggio nella UI
         function displayMessage(message) {
             const el = document.createElement('div');
             el.classList.add('mb-3', 'p-3', 'rounded-lg', 'max-w-xs', 'break-words', 'shadow-sm');
-            
             if (message.sender === 'visitor') {
                 el.classList.add('bg-blue-500', 'text-white', 'ml-auto', 'rounded-br-none');
             } else {
