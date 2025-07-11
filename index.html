@@ -116,8 +116,8 @@
             chatBubble.classList.remove('hidden');
         });
 
-        async function initializeChat() {
-            if (chatSessionInitialized) return; // Inizializza solo una volta
+        function initializeChat() {
+            if (chatSessionInitialized) return; 
             
             listenForMessages();
             chatSessionInitialized = true;
@@ -131,14 +131,12 @@
                     const sessionDocRef = doc(db, 'chats', visitorId);
                     const messagesColRef = collection(sessionDocRef, 'messages');
                     
-                    // Aggiunge il nuovo messaggio
                     await addDoc(messagesColRef, {
                         text: text,
                         sender: 'visitor',
                         createdAt: serverTimestamp()
                     });
                     
-                    // Crea o aggiorna il documento principale della chat
                     await setDoc(sessionDocRef, {
                         lastMessage: text,
                         lastUpdate: serverTimestamp(),
@@ -146,7 +144,6 @@
                     }, { merge: true });
 
                     messageInput.value = '';
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
                 } catch (error) {
                     console.error("Errore durante l'invio del messaggio:", error);
                 }
@@ -174,11 +171,10 @@
             
             if (message.sender === 'visitor') {
                 el.classList.add('bg-blue-500', 'text-white', 'ml-auto');
-                el.textContent = message.text;
             } else {
                 el.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto');
-                el.textContent = message.text;
             }
+            el.textContent = message.text;
             chatMessages.appendChild(el);
         }
     </script>
