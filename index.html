@@ -28,7 +28,7 @@
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background-color: #2563eb;
+            background-color: #25eb7e;
             color: white;
             width: 60px;
             height: 60px;
@@ -72,14 +72,13 @@
              </form>
         </div>
 
-        <!-- **MODIFICA CHIAVE**: Aggiunta `min-h-0` a questo contenitore per risolvere il bug di overflow di flexbox. -->
         <div id="chat-screen" class="flex-1 flex flex-col min-h-0" style="display: none;">
             <main id="chat-messages" class="flex-1 p-4 overflow-y-auto bg-gray-50">
             </main>
             <footer class="p-2 bg-white border-t flex-shrink-0">
                 <form id="message-form" class="flex items-center">
                     <input type="text" id="message-input" placeholder="Scrivi una domanda..." autocomplete="off" class="border p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 flex-grow">
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded-full ml-2 flex-shrink-0">
+                    <button type="submit" id="send-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded-full ml-2 flex-shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                     </button>
                 </form>
@@ -115,11 +114,13 @@
         const chatMessages = document.getElementById('chat-messages');
         const messageForm = document.getElementById('message-form');
         const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
         const chatHeaderContent = document.getElementById('chat-header-content');
 
         let visitorId = null;
         let visitorName = localStorage.getItem('visitorName');
         let unsubscribeFromMessages = null;
+        let unsubscribeFromSession = null;
 
         onAuthStateChanged(auth, user => {
             if (user) {
@@ -176,6 +177,17 @@
                 lastUpdate: serverTimestamp() 
             }, { merge: true });
 
+            unsubscribeFromSession = onSnapshot(sessionDocRef, (doc) => {
+                if (doc.exists() && doc.data().status === 'closed') {
+                    messageInput.placeholder = 'Questa chat è stata chiusa.';
+                    messageInput.disabled = true;
+                    sendButton.disabled = true;
+                    sendButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+                    sendButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    if(unsubscribeFromSession) unsubscribeFromSession();
+                }
+            });
+
             const messagesColRef = collection(db, 'chats', visitorId, 'messages');
             const q = query(messagesColRef, orderBy("createdAt"));
 
@@ -211,11 +223,16 @@
 
         function displayMessage(message) {
             const el = document.createElement('div');
-            el.classList.add('mb-3', 'p-3', 'rounded-lg', 'max-w-xs', 'break-words', 'shadow-sm');
-            if (message.sender === 'visitor') {
-                el.classList.add('bg-blue-500', 'text-white', 'ml-auto', 'rounded-br-none');
+            
+            if (message.type === 'system_message') {
+                el.classList.add('text-center', 'text-xs', 'text-gray-500', 'my-4', 'p-2', 'bg-gray-100', 'rounded-full', 'mx-auto', 'w-11/12');
             } else {
-                el.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto', 'rounded-bl-none');
+                el.classList.add('mb-3', 'p-3', 'rounded-lg', 'max-w-xs', 'break-words', 'shadow-sm');
+                if (message.sender === 'visitor') {
+                    el.classList.add('bg-blue-500', 'text-white', 'ml-auto', 'rounded-br-none');
+                } else {
+                    el.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto', 'rounded-bl-none');
+                }
             }
             el.textContent = message.text;
             chatMessages.appendChild(el);
