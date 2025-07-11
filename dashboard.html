@@ -65,7 +65,6 @@
         </main>
     </div>
 
-    <!-- Modal di conferma chiusura -->
     <div id="close-confirm-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div class="mt-3 text-center">
@@ -127,6 +126,22 @@
         let currentChatId = null;
         let unsubscribeFromMessages = null;
         let chatToCloseId = null;
+        let isInitialLoad = true; // **MODIFICA: Per gestire le notifiche**
+
+        // --- Logica per le notifiche ---
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                console.log("Questo browser non supporta le notifiche desktop");
+            } else if (Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+        }
+
+        function showNotification(title, body) {
+            if (Notification.permission === "granted" && document.hidden) {
+                new Notification(title, { body: body, icon: './favicon.ico' }); // Puoi aggiungere un'icona se vuoi
+            }
+        }
 
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -147,6 +162,7 @@
                 loginScreen.classList.add('hidden');
                 dashboardScreen.classList.remove('hidden');
                 dashboardScreen.classList.add('flex');
+                requestNotificationPermission(); // **MODIFICA: Richiedi i permessi al login**
                 listenForChatSessions();
             } else {
                 loginScreen.classList.remove('hidden');
@@ -159,11 +175,28 @@
         function listenForChatSessions() {
             const q = query(collection(db, 'chats'), orderBy('lastUpdate', 'desc'));
             onSnapshot(q, snapshot => {
-                chatList.innerHTML = '';
+                const chatListContainer = document.createDocumentFragment();
+
+                snapshot.docChanges().forEach(change => {
+                    const chat = change.doc.data();
+                    const displayName = chat.visitorName || `Visitatore ${change.doc.id.substring(0, 8)}`;
+
+                    if (change.type === "added" && !isInitialLoad) {
+                         showNotification("Nuova conversazione", `Da: ${displayName}`);
+                    }
+                    if (change.type === "modified") {
+                        // Notifica solo se il messaggio non è del supporto e la chat non è stata appena riaperta
+                        if (!chat.lastMessage.startsWith('Risposta:') && !chat.lastMessage.includes('riaperto la conversazione')) {
+                            showNotification(`Nuovo messaggio da ${displayName}`, chat.lastMessage);
+                        }
+                    }
+                });
+
+                chatList.innerHTML = ''; // Pulisci la lista
                 snapshot.forEach(doc => {
                     const chat = doc.data();
                     if (chat.status === 'closed') {
-                        return; // Salta le chat chiuse
+                        return;
                     }
                     const displayName = chat.visitorName || `Visitatore ${doc.id.substring(0, 8)}`;
                     
@@ -177,8 +210,10 @@
                         <p class="text-sm text-gray-600 truncate">${chat.lastMessage || 'Nessun messaggio'}</p>
                     `;
                     chatEl.addEventListener('click', () => openChat(doc.id, chatEl.dataset.name));
-                    chatList.appendChild(chatEl);
+                    chatListContainer.appendChild(chatEl);
                 });
+                chatList.appendChild(chatListContainer);
+                isInitialLoad = false; // **MODIFICA: Il caricamento iniziale è completato**
             });
         }
         
