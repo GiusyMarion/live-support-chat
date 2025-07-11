@@ -20,7 +20,6 @@
             box-shadow: 0 5px 25px rgba(0,0,0,0.15);
             border-radius: 15px;
             overflow: hidden;
-            display: flex;
             flex-direction: column;
             transition: all 0.3s ease-in-out;
             z-index: 1000;
@@ -45,7 +44,6 @@
         #chat-bubble:hover {
             transform: scale(1.1);
         }
-        .hidden-view { display: none; }
     </style>
 </head>
 <body>
@@ -56,8 +54,8 @@
         </svg>
     </div>
 
-    <div id="chat-widget" class="hidden-view">
-        <header class="bg-blue-600 text-white p-4 text-left flex justify-between items-center">
+    <div id="chat-widget" style="display: none;">
+        <header class="bg-blue-600 text-white p-4 text-left flex justify-between items-center flex-shrink-0">
             <div id="chat-header-content">
                 <h1 class="text-lg font-bold">Supporto Live</h1>
                 <p class="text-xs">Siamo qui per aiutarti!</p>
@@ -65,7 +63,6 @@
             <button id="close-chat" class="text-white text-2xl leading-none">&times;</button>
         </header>
 
-        <!-- Schermata per chiedere il nome -->
         <div id="name-capture-screen" class="p-6 flex-1 flex flex-col justify-center items-center bg-gray-50">
              <h2 class="text-xl font-bold mb-4 text-gray-800">Benvenuto!</h2>
              <p class="text-gray-600 mb-6 text-center">Inserisci il tuo nome per iniziare a chattare con il nostro team.</p>
@@ -75,11 +72,12 @@
              </form>
         </div>
 
-        <!-- Schermata della chat principale -->
-        <div id="chat-screen" class="hidden-view flex-1 flex flex-col">
-            <main id="chat-messages" class="flex-1 p-4 overflow-y-auto bg-gray-50">
+        <div id="chat-screen" class="flex-1 flex flex-col" style="display: none;">
+            <!-- **MODIFICA CHIAVE**: Aggiunta la classe `min-h-0` per risolvere il problema di layout di flexbox. -->
+            <main id="chat-messages" class="flex-1 p-4 overflow-y-auto bg-gray-50 min-h-0">
             </main>
-            <footer class="p-2 bg-white border-t">
+            <!-- **MODIFICA CHIAVE**: Aggiunta la classe `flex-shrink-0` per impedire alla barra di input di restringersi. -->
+            <footer class="p-2 bg-white border-t flex-shrink-0">
                 <form id="message-form" class="flex items-center">
                     <input type="text" id="message-input" placeholder="Scrivi una domanda..." autocomplete="off" class="border p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 flex-grow">
                     <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded-full ml-2 flex-shrink-0">
@@ -133,16 +131,19 @@
         });
 
         chatBubble.addEventListener('click', () => {
-            chatWidget.classList.remove('hidden-view');
-            chatBubble.classList.add('hidden-view');
+            chatWidget.style.display = 'flex';
+            chatBubble.style.display = 'none';
             if (visitorName) {
                 showChatScreen();
+            } else {
+                nameCaptureScreen.style.display = 'flex';
+                chatScreen.style.display = 'none';
             }
         });
 
         closeChat.addEventListener('click', () => {
-            chatWidget.classList.add('hidden-view');
-            chatBubble.classList.remove('hidden-view');
+            chatWidget.style.display = 'none';
+            chatBubble.style.display = 'flex';
         });
 
         nameCaptureForm.addEventListener('submit', (e) => {
@@ -156,8 +157,8 @@
         });
         
         function showChatScreen() {
-            nameCaptureScreen.classList.add('hidden-view');
-            chatScreen.classList.remove('hidden-view');
+            nameCaptureScreen.style.display = 'none';
+            chatScreen.style.display = 'flex';
             chatHeaderContent.innerHTML = `<h1 class="text-lg font-bold">Ciao, ${visitorName}!</h1><p class="text-xs">Come possiamo aiutarti?</p>`;
             initializeChat();
         }
