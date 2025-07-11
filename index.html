@@ -28,7 +28,7 @@
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background-color: #2563eb;
+            background-color: #de800d;
             color: white;
             width: 60px;
             height: 60px;
@@ -55,7 +55,7 @@
     </div>
 
     <div id="chat-widget" style="display: none;">
-        <header class="bg-blue-600 text-white p-4 text-left flex justify-between items-center flex-shrink-0">
+        <header class="bg-indigo-600 text-white p-4 text-left flex justify-between items-center flex-shrink-0">
             <div id="chat-header-content">
                 <h1 class="text-lg font-bold">Supporto Live</h1>
                 <p class="text-xs">Siamo qui per aiutarti!</p>
@@ -68,7 +68,7 @@
              <p class="text-gray-600 mb-6 text-center">Inserisci il tuo nome per iniziare a chattare con il nostro team.</p>
              <form id="name-capture-form" class="w-full">
                  <input type="text" id="name-input" placeholder="Il tuo nome..." class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
-                 <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors mt-4 font-bold">Inizia Chat</button>
+                 <button type="submit" class="w-full bg-indigo-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors mt-4 font-bold">Inizia Chat</button>
              </form>
         </div>
 
@@ -78,7 +78,7 @@
             <footer class="p-2 bg-white border-t flex-shrink-0">
                 <form id="message-form" class="flex items-center">
                     <input type="text" id="message-input" placeholder="Scrivi una domanda..." autocomplete="off" class="border p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 flex-grow">
-                    <button type="submit" id="send-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded-full ml-2 flex-shrink-0">
+                    <button type="submit" id="send-button" class="bg-indigo-600 hover:bg-blue-700 text-white font-bold p-2 rounded-full ml-2 flex-shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                     </button>
                 </form>
@@ -200,7 +200,7 @@
             messageInput.disabled = false;
             sendButton.disabled = false;
             sendButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
-            sendButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            sendButton.classList.add('bg-indigo-600', 'hover:bg-blue-700');
 
             unsubscribeFromSession = onSnapshot(sessionDocRef, (doc) => {
                 if (doc.exists() && doc.data().status === 'closed') {
@@ -208,7 +208,7 @@
                     messageInput.disabled = true;
                     sendButton.disabled = true;
                     sendButton.classList.add('bg-gray-400', 'cursor-not-allowed');
-                    sendButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    sendButton.classList.remove('bg-indigo-600', 'hover:bg-blue-700');
                     if(unsubscribeFromSession) unsubscribeFromSession();
                 }
             });
@@ -254,7 +254,7 @@
             } else {
                 el.classList.add('mb-3', 'p-3', 'rounded-lg', 'max-w-xs', 'break-words', 'shadow-sm');
                 if (message.sender === 'visitor') {
-                    el.classList.add('bg-blue-500', 'text-white', 'ml-auto', 'rounded-br-none');
+                    el.classList.add('bg-green-300', 'text-white', 'ml-auto', 'rounded-br-none');
                 } else {
                     el.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto', 'rounded-bl-none');
                 }
