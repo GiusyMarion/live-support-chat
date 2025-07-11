@@ -209,27 +209,3 @@
     </script>
 </body>
 </html>
-```
-
-### Checklist Finale
-
-Per favore, segui questi passaggi finali per assicurarti che tutto sia allineato:
-
-1.  **Sostituisci i File su GitHub:**
-    * Copia il contenuto del primo riquadro e usalo per sostituire completamente il contenuto del tuo file `index.html` su GitHub.
-    * Copia il contenuto del secondo riquadro e usalo per sostituire completamente il contenuto del tuo file `dashboard.html` su GitHub.
-
-2.  **Verifica le Regole di Firebase:**
-    * Assicurati che le regole del tuo **Firestore Database** siano impostate correttamente per la chat di supporto:
-        ```
-        rules_version = '2';
-        service cloud.firestore {
-          match /databases/{database}/documents {
-            match /chats/{chatId}/{document=**} {
-              allow read, write: if true;
-            }
-          }
-        }
-        ```
-
-Dopo aver aggiornato i file su GitHub, attendi un paio di minuti che Netlify pubblichi le modifiche. Con questi file corretti, il sistema funzione
