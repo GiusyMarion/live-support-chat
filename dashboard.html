@@ -126,9 +126,8 @@
         let currentChatId = null;
         let unsubscribeFromMessages = null;
         let chatToCloseId = null;
-        let isInitialLoad = true; // **MODIFICA: Per gestire le notifiche**
+        let isInitialLoad = true;
 
-        // --- Logica per le notifiche ---
         function requestNotificationPermission() {
             if (!("Notification" in window)) {
                 console.log("Questo browser non supporta le notifiche desktop");
@@ -139,7 +138,7 @@
 
         function showNotification(title, body) {
             if (Notification.permission === "granted" && document.hidden) {
-                new Notification(title, { body: body, icon: './favicon.ico' }); // Puoi aggiungere un'icona se vuoi
+                new Notification(title, { body: body, icon: './favicon.ico' });
             }
         }
 
@@ -162,7 +161,7 @@
                 loginScreen.classList.add('hidden');
                 dashboardScreen.classList.remove('hidden');
                 dashboardScreen.classList.add('flex');
-                requestNotificationPermission(); // **MODIFICA: Richiedi i permessi al login**
+                requestNotificationPermission();
                 listenForChatSessions();
             } else {
                 loginScreen.classList.remove('hidden');
@@ -172,54 +171,84 @@
             }
         });
 
+        // **MODIFICA: Funzione per creare un elemento della lista chat**
+        function createChatElement(doc) {
+            const chat = doc.data();
+            const displayName = chat.visitorName || `Visitatore ${doc.id.substring(0, 8)}`;
+            const chatEl = document.createElement('div');
+            chatEl.className = `p-4 border-b cursor-pointer hover:bg-gray-100`;
+            chatEl.dataset.id = doc.id;
+            
+            chatEl.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <p class="font-bold truncate">${displayName}</p>
+                    <span class="notification-badge hidden w-2.5 h-2.5 bg-blue-500 rounded-full"></span>
+                </div>
+                <p class="text-sm text-gray-600 truncate last-message">${chat.lastMessage || 'Nessun messaggio'}</p>
+            `;
+            
+            chatEl.addEventListener('click', () => openChat(doc.id, displayName));
+            return chatEl;
+        }
+
+        // **MODIFICA: Logica di ascolto migliorata per gestire le notifiche visive**
         function listenForChatSessions() {
             const q = query(collection(db, 'chats'), orderBy('lastUpdate', 'desc'));
             onSnapshot(q, snapshot => {
-                const chatListContainer = document.createDocumentFragment();
-
                 snapshot.docChanges().forEach(change => {
-                    const chat = change.doc.data();
-                    const displayName = chat.visitorName || `Visitatore ${change.doc.id.substring(0, 8)}`;
+                    const doc = change.doc;
+                    const chat = doc.data();
+                    const chatEl = chatList.querySelector(`[data-id="${doc.id}"]`);
 
-                    if (change.type === "added" && !isInitialLoad) {
-                         showNotification("Nuova conversazione", `Da: ${displayName}`);
+                    if (change.type === "added") {
+                        if (chat.status !== 'closed' && !chatEl) {
+                            const newChatEl = createChatElement(doc);
+                            chatList.prepend(newChatEl);
+                            if (!isInitialLoad) {
+                                showNotification("Nuova conversazione", `Da: ${chat.visitorName}`);
+                                newChatEl.querySelector('.notification-badge').classList.remove('hidden');
+                            }
+                        }
                     }
+
                     if (change.type === "modified") {
-                        // Notifica solo se il messaggio non è del supporto e la chat non è stata appena riaperta
-                        if (!chat.lastMessage.startsWith('Risposta:') && !chat.lastMessage.includes('riaperto la conversazione')) {
-                            showNotification(`Nuovo messaggio da ${displayName}`, chat.lastMessage);
+                        if (chatEl) {
+                            // Aggiorna l'ultimo messaggio e sposta in cima
+                            chatEl.querySelector('.last-message').textContent = chat.lastMessage || 'Nessun messaggio';
+                            chatList.prepend(chatEl);
+                            
+                            // Mostra notifica se il messaggio è del visitatore e la chat non è attiva
+                            const isFromVisitor = !chat.lastMessage.startsWith('Risposta:') && !chat.lastMessage.includes('riaperto la conversazione');
+                            if (isFromVisitor && doc.id !== currentChatId) {
+                                showNotification(`Nuovo messaggio da ${chat.visitorName}`, chat.lastMessage);
+                                chatEl.querySelector('.notification-badge').classList.remove('hidden');
+                            }
+                        }
+                        // Se la chat viene chiusa, rimuovila dalla lista
+                        if (chat.status === 'closed' && chatEl) {
+                            chatEl.remove();
+                        }
+                    }
+
+                    if (change.type === "removed") {
+                        if (chatEl) {
+                            chatEl.remove();
                         }
                     }
                 });
-
-                chatList.innerHTML = ''; // Pulisci la lista
-                snapshot.forEach(doc => {
-                    const chat = doc.data();
-                    if (chat.status === 'closed') {
-                        return;
-                    }
-                    const displayName = chat.visitorName || `Visitatore ${doc.id.substring(0, 8)}`;
-                    
-                    const chatEl = document.createElement('div');
-                    chatEl.className = `p-4 border-b cursor-pointer hover:bg-gray-100 ${doc.id === currentChatId ? 'bg-blue-50' : ''}`;
-                    chatEl.dataset.id = doc.id;
-                    chatEl.dataset.name = displayName;
-                    
-                    chatEl.innerHTML = `
-                        <p class="font-bold truncate">${displayName}</p>
-                        <p class="text-sm text-gray-600 truncate">${chat.lastMessage || 'Nessun messaggio'}</p>
-                    `;
-                    chatEl.addEventListener('click', () => openChat(doc.id, chatEl.dataset.name));
-                    chatListContainer.appendChild(chatEl);
-                });
-                chatList.appendChild(chatListContainer);
-                isInitialLoad = false; // **MODIFICA: Il caricamento iniziale è completato**
+                isInitialLoad = false;
             });
         }
         
         function openChat(chatId, displayName) {
             if (currentChatId === chatId) return;
             currentChatId = chatId;
+            
+            // **MODIFICA: Nasconde il pallino di notifica quando si apre la chat**
+            const chatEl = chatList.querySelector(`[data-id="${chatId}"]`);
+            if (chatEl) {
+                chatEl.querySelector('.notification-badge').classList.add('hidden');
+            }
             
             document.querySelectorAll('#chat-list > div').forEach(el => {
                 el.classList.remove('bg-blue-50');
