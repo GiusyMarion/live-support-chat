@@ -72,11 +72,10 @@
              </form>
         </div>
 
-        <div id="chat-screen" class="flex-1 flex flex-col" style="display: none;">
-            <!-- **MODIFICA CHIAVE**: Aggiunta la classe `min-h-0` per risolvere il problema di layout di flexbox. -->
-            <main id="chat-messages" class="flex-1 p-4 overflow-y-auto bg-gray-50 min-h-0">
+        <!-- **MODIFICA CHIAVE**: Aggiunta `min-h-0` a questo contenitore per risolvere il bug di overflow di flexbox. -->
+        <div id="chat-screen" class="flex-1 flex flex-col min-h-0" style="display: none;">
+            <main id="chat-messages" class="flex-1 p-4 overflow-y-auto bg-gray-50">
             </main>
-            <!-- **MODIFICA CHIAVE**: Aggiunta la classe `flex-shrink-0` per impedire alla barra di input di restringersi. -->
             <footer class="p-2 bg-white border-t flex-shrink-0">
                 <form id="message-form" class="flex items-center">
                     <input type="text" id="message-input" placeholder="Scrivi una domanda..." autocomplete="off" class="border p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 flex-grow">
