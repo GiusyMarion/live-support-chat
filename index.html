@@ -71,117 +71,119 @@
         </footer>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, query, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, addDoc, query, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Your web app's Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCy4AMQciSCQmChOzCGM5Ys40gYweCtTGw",
-            authDomain: "supporto-chat-sito.firebaseapp.com",
-            projectId: "supporto-chat-sito",
-            storageBucket: "supporto-chat-sito.appspot.com",
-            messagingSenderId: "253084607926",
-            appId: "1:253084607926:web:6b7f62e9e4246c14a28d17"
-        };
+    // La tua configurazione di Firebase (invariata)
+    const firebaseConfig = {
+        apiKey: "AIzaSyCy4AMQciSCQmChOzCGM5Ys40gYweCtTGw",
+        authDomain: "supporto-chat-sito.firebaseapp.com",
+        projectId: "supporto-chat-sito",
+        storageBucket: "supporto-chat-sito.appspot.com",
+        messagingSenderId: "253084607926",
+        appId: "1:253084607926:web:6b7f62e9e4246c14a28d17"
+    };
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+    // Inizializzazione di Firebase (invariata)
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-        const chatBubble = document.getElementById('chat-bubble');
-        const chatWidget = document.getElementById('chat-widget');
-        const closeChat = document.getElementById('close-chat');
-        const chatMessages = document.getElementById('chat-messages');
-        const messageForm = document.getElementById('message-form');
-        const messageInput = document.getElementById('message-input');
+    // Riferimenti DOM (invariati)
+    const chatBubble = document.getElementById('chat-bubble');
+    const chatWidget = document.getElementById('chat-widget');
+    const closeChat = document.getElementById('close-chat');
+    const chatMessages = document.getElementById('chat-messages');
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
 
-        let visitorId = localStorage.getItem('visitorId');
-        if (!visitorId) {
-            visitorId = crypto.randomUUID();
-            localStorage.setItem('visitorId', visitorId);
-        }
+    let visitorId = localStorage.getItem('visitorId');
+    if (!visitorId) {
+        visitorId = crypto.randomUUID();
+        localStorage.setItem('visitorId', visitorId);
+    }
 
-        let chatSessionInitialized = false;
+    let chatSessionInitialized = false;
 
-        // Gestione apertura/chiusura widget
-        chatBubble.addEventListener('click', () => {
-            chatWidget.classList.remove('hidden');
-            chatBubble.classList.add('hidden');
-            initializeChat();
-        });
+    // Gestione apertura/chiusura widget (invariata)
+    chatBubble.addEventListener('click', () => {
+        chatWidget.classList.remove('hidden');
+        chatBubble.classList.add('hidden');
+        initializeChat();
+    });
 
-        closeChat.addEventListener('click', () => {
-            chatWidget.classList.add('hidden');
-            chatBubble.classList.remove('hidden');
-        });
+    closeChat.addEventListener('click', () => {
+        chatWidget.classList.add('hidden');
+        chatBubble.classList.remove('hidden');
+    });
 
-        async function initializeChat() {
-            if (chatSessionInitialized) return; 
-            
-            const sessionDocRef = doc(db, 'chats', visitorId);
-            await setDoc(sessionDocRef, { visitorId: visitorId }, { merge: true });
+    async function initializeChat() {
+        if (chatSessionInitialized) return;
+        
+        const sessionDocRef = doc(db, 'chats', visitorId);
+        await setDoc(sessionDocRef, { visitorId: visitorId }, { merge: true });
 
-            listenForMessages();
-            chatSessionInitialized = true;
-        }
+        listenForMessages();
+        chatSessionInitialized = true;
+    }
 
-        messageForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const text = messageInput.value.trim();
-            if (text) {
-                try {
-                    const sessionDocRef = doc(db, 'chats', visitorId);
-                    const messagesColRef = collection(sessionDocRef, 'messages');
-                    
-                    await addDoc(messagesColRef, {
-                        text: text,
-                        sender: 'visitor',
-                        createdAt: serverTimestamp()
-                    });
-                    
-                    // FIX: Corrected typo from sessionDoc_ref to sessionDocRef
-                    await setDoc(sessionDocRef, {
-                        lastMessage: text,
-                        lastUpdate: serverTimestamp(),
-                    }, { merge: true });
-
-                    messageInput.value = '';
-                } catch (error) {
-                    console.error("Errore durante l'invio del messaggio:", error);
-                }
-            }
-        });
-
-        function listenForMessages() {
-            const messagesColRef = collection(db, 'chats', visitorId, 'messages');
-            // FIX: Corrected typo from messagesCol-ref to messagesColRef
-            const q = query(messagesColRef, orderBy("createdAt"));
-
-            onSnapshot(q, (snapshot) => {
-                chatMessages.innerHTML = '';
-                snapshot.forEach(doc => {
-                    displayMessage(doc.data());
+    messageForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const text = messageInput.value.trim();
+        if (text) {
+            try {
+                const sessionDocRef = doc(db, 'chats', visitorId);
+                const messagesColRef = collection(sessionDocRef, 'messages');
+                
+                await addDoc(messagesColRef, {
+                    text: text,
+                    sender: 'visitor',
+                    createdAt: serverTimestamp()
                 });
+                
+                // CORREZIONE 1: Corretto l'errore di battitura da sessionDoc_ref a sessionDocRef
+                await setDoc(sessionDocRef, {
+                    lastMessage: text,
+                    lastUpdate: serverTimestamp(),
+                }, { merge: true });
 
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }, (error) => {
-                console.error("Errore nella ricezione dei messaggi:", error);
-            });
-        }
-
-        function displayMessage(message) {
-            const el = document.createElement('div');
-            el.classList.add('mb-3', 'p-3', 'rounded-lg', 'max-w-xs', 'break-words');
-            
-            if (message.sender === 'visitor') {
-                el.classList.add('bg-blue-500', 'text-white', 'ml-auto');
-            } else {
-                el.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto');
+                messageInput.value = '';
+            } catch (error) {
+                console.error("Errore durante l'invio del messaggio:", error);
             }
-            el.textContent = message.text;
-            chatMessages.appendChild(el);
         }
-    </script>
+    });
+
+    function listenForMessages() {
+        const messagesColRef = collection(db, 'chats', visitorId, 'messages');
+        // CORREZIONE 2: Corretto l'errore di battitura da messagesCol-ref a messagesColRef
+        const q = query(messagesColRef, orderBy("createdAt"));
+
+        onSnapshot(q, (snapshot) => {
+            chatMessages.innerHTML = '';
+            snapshot.forEach(doc => {
+                displayMessage(doc.data());
+            });
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }, (error) => {
+            console.error("Errore nella ricezione dei messaggi:", error);
+        });
+    }
+
+    // Funzione displayMessage (invariata)
+    function displayMessage(message) {
+        const el = document.createElement('div');
+        el.classList.add('mb-3', 'p-3', 'rounded-lg', 'max-w-xs', 'break-words');
+        
+        if (message.sender === 'visitor') {
+            el.classList.add('bg-blue-500', 'text-white', 'ml-auto');
+        } else {
+            el.classList.add('bg-gray-200', 'text-gray-800', 'mr-auto');
+        }
+        el.textContent = message.text;
+        chatMessages.appendChild(el);
+    }
+</script>
 </body>
 </html>
