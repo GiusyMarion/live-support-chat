@@ -12,7 +12,6 @@
 </head>
 <body class="bg-gray-100">
 
-    <!-- Schermata di Login -->
     <div id="login-screen" class="flex items-center justify-center h-screen">
         <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
             <h1 class="text-2xl font-bold mb-6 text-center">Accesso Tecnico</h1>
@@ -31,20 +30,16 @@
         </div>
     </div>
 
-    <!-- Dashboard Principale (nascosta) -->
     <div id="dashboard-screen" class="hidden h-screen flex">
-        <!-- Lista delle chat -->
         <aside class="w-1/3 bg-white border-r overflow-y-auto flex flex-col">
             <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
                 <h2 class="text-xl font-bold">Conversazioni</h2>
                 <button id="logout-btn" class="text-sm text-red-500 hover:underline">Esci</button>
             </div>
             <div id="chat-list" class="flex-grow">
-                <!-- La lista delle chat verrà inserita qui -->
             </div>
         </aside>
 
-        <!-- Finestra della chat attiva -->
         <main class="w-2/3 flex flex-col bg-gray-50">
             <div id="active-chat-window" class="flex-1 flex flex-col">
                 <div id="chat-placeholder" class="flex-1 flex items-center justify-center text-gray-500">
@@ -55,7 +50,6 @@
                         <h3 id="active-chat-header" class="font-bold"></h3>
                     </header>
                     <div id="active-chat-messages" class="flex-1 p-4 overflow-y-auto">
-                        <!-- Messaggi della chat attiva -->
                     </div>
                     <footer class="p-2 bg-white border-t">
                         <form id="active-chat-form" class="flex items-center">
@@ -73,7 +67,6 @@
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, query, onSnapshot, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // La tua configurazione Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCy4AMQciSCQmChOzCGM5Ys40gYweCtTGw",
             authDomain: "supporto-chat-sito.firebaseapp.com",
@@ -83,12 +76,10 @@
             appId: "1:253084607926:web:6b7f62e9e4246c14a28d17"
         };
 
-        // Inizializza Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Riferimenti DOM
         const loginScreen = document.getElementById('login-screen');
         const dashboardScreen = document.getElementById('dashboard-screen');
         const loginForm = document.getElementById('login-form');
@@ -105,7 +96,6 @@
         let currentChatId = null;
         let unsubscribeFromMessages = null;
 
-        // Gestione Login/Logout
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             loginError.textContent = '';
@@ -121,7 +111,7 @@
         logoutBtn.addEventListener('click', () => signOut(auth));
 
         onAuthStateChanged(auth, user => {
-            if (user && !user.isAnonymous) { // Assicurati che non sia un utente anonimo
+            if (user && !user.isAnonymous) {
                 loginScreen.classList.add('hidden');
                 dashboardScreen.classList.remove('hidden');
                 dashboardScreen.classList.add('flex');
@@ -134,33 +124,37 @@
             }
         });
 
-        // Ascolta le sessioni di chat
         function listenForChatSessions() {
             const q = query(collection(db, 'chats'), orderBy('lastUpdate', 'desc'));
             onSnapshot(q, snapshot => {
                 chatList.innerHTML = '';
                 snapshot.forEach(doc => {
                     const chat = doc.data();
+                    // **MODIFICA: Usa il nome del visitatore se esiste, altrimenti un fallback.**
+                    const displayName = chat.visitorName || `Visitatore ${doc.id.substring(0, 8)}`;
+                    
                     const chatEl = document.createElement('div');
                     chatEl.className = `p-4 border-b cursor-pointer hover:bg-gray-100 ${doc.id === currentChatId ? 'bg-blue-50' : ''}`;
                     chatEl.dataset.id = doc.id;
+                    // **MODIFICA: Salva il nome per usarlo nell'intestazione della chat.**
+                    chatEl.dataset.name = displayName;
+                    
                     chatEl.innerHTML = `
-                        <p class="font-bold truncate">Visitatore ${doc.id.substring(0, 8)}</p>
+                        <p class="font-bold truncate">${displayName}</p>
                         <p class="text-sm text-gray-600 truncate">${chat.lastMessage || 'Nessun messaggio'}</p>
                     `;
-                    chatEl.addEventListener('click', () => openChat(doc.id));
+                    chatEl.addEventListener('click', () => openChat(doc.id, chatEl.dataset.name));
                     chatList.appendChild(chatEl);
                 });
             });
         }
         
-        // Apri una chat specifica
-        function openChat(chatId) {
-            if (currentChatId === chatId) return; // Non ricaricare se la chat è già aperta
+        // **MODIFICA: La funzione ora accetta anche il nome del visitatore.**
+        function openChat(chatId, displayName) {
+            if (currentChatId === chatId) return;
 
             currentChatId = chatId;
             
-            // Aggiorna la UI della lista per evidenziare la chat attiva
             document.querySelectorAll('#chat-list > div').forEach(el => {
                 el.classList.remove('bg-blue-50');
                 if (el.dataset.id === chatId) {
@@ -171,7 +165,8 @@
             chatPlaceholder.classList.add('hidden');
             chatArea.classList.remove('hidden');
             chatArea.classList.add('flex');
-            activeChatHeader.textContent = `Conversazione con Visitatore ${chatId.substring(0, 8)}`;
+            // **MODIFICA: Mostra il nome corretto nell'intestazione.**
+            activeChatHeader.textContent = `Conversazione con ${displayName}`;
             
             if (unsubscribeFromMessages) unsubscribeFromMessages();
 
@@ -179,14 +174,11 @@
             const q = query(messagesColRef, orderBy('createdAt'));
             unsubscribeFromMessages = onSnapshot(q, snapshot => {
                 activeChatMessages.innerHTML = '';
-                snapshot.forEach(doc => {
-                    displayMessageInDashboard(doc.data());
-                });
+                snapshot.forEach(doc => displayMessageInDashboard(doc.data()));
                 activeChatMessages.scrollTop = activeChatMessages.scrollHeight;
             });
         }
 
-        // Invia una risposta
         activeChatForm.addEventListener('submit', async e => {
             e.preventDefault();
             const text = activeChatInput.value.trim();
@@ -195,20 +187,17 @@
                 try {
                     const sessionDocRef = doc(db, 'chats', currentChatId);
                     const messagesColRef = collection(sessionDocRef, 'messages');
-                    
                     await addDoc(messagesColRef, {
                         text: text,
-                        sender: 'support', // Modificato per chiarezza
+                        sender: 'support',
                         createdAt: serverTimestamp()
                     });
-                    
                     await setDoc(sessionDocRef, {
                         lastMessage: `Risposta: ${text}`,
                         lastUpdate: serverTimestamp()
                     }, { merge: true });
-                    
                 } catch (error) {
-                    console.error("Errore durante l'invio della risposta:", error);
+                    console.error("Errore invio risposta:", error);
                 }
             }
         });
@@ -216,10 +205,9 @@
         function displayMessageInDashboard(message) {
             const el = document.createElement('div');
             el.classList.add('mb-3', 'p-3', 'rounded-lg', 'max-w-md', 'break-words', 'shadow-sm');
-            
             if (message.sender === 'support') {
                 el.classList.add('bg-blue-500', 'text-white', 'ml-auto', 'rounded-br-none');
-            } else { // sender === 'visitor'
+            } else {
                 el.classList.add('bg-white', 'text-gray-800', 'mr-auto', 'rounded-bl-none');
             }
             el.textContent = message.text;
