@@ -5,19 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Supporto</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .modal {
-            transition: opacity 0.25s ease;
-        }
-        .modal-active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .modal-inactive {
-            opacity: 0;
-            pointer-events: none;
-        }
-    </style>
 </head>
 <body class="font-sans bg-gray-100">
 
@@ -60,9 +47,8 @@
                     <p>Seleziona una chat per iniziare.</p>
                 </div>
                 <div id="chat-area" class="hidden flex-1 flex flex-col">
-                    <header class="p-4 bg-gray-50 border-b flex justify-between items-center">
+                    <header class="p-4 bg-gray-50 border-b">
                         <h3 id="active-chat-header" class="font-bold"></h3>
-                        <button id="summarize-btn" class="text-sm bg-blue-100 text-blue-700 font-semibold px-3 py-1 rounded-full hover:bg-blue-200">✨ Riassumi</button>
                     </header>
                     <div id="active-chat-messages" class="flex-1 p-4 overflow-y-auto">
                         <!-- Messaggi della chat attiva -->
@@ -77,25 +63,11 @@
             </div>
         </main>
     </div>
-    
-    <!-- Modale per il riassunto -->
-    <div id="summary-modal" class="modal modal-inactive fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h4 class="text-lg font-bold">✨ Riassunto della Conversazione</h4>
-                <button id="close-modal-btn" class="text-2xl">&times;</button>
-            </div>
-            <div id="summary-content" class="text-gray-700">
-                <!-- Il riassunto apparirà qui -->
-            </div>
-        </div>
-    </div>
-
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, query, onSnapshot, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, addDoc, query, onSnapshot, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Your web app's Firebase configuration
         const firebaseConfig = {
@@ -125,14 +97,9 @@
         const activeChatMessages = document.getElementById('active-chat-messages');
         const activeChatForm = document.getElementById('active-chat-form');
         const activeChatInput = document.getElementById('active-chat-input');
-        const summarizeBtn = document.getElementById('summarize-btn');
-        const summaryModal = document.getElementById('summary-modal');
-        const closeModalBtn = document.getElementById('close-modal-btn');
-        const summaryContent = document.getElementById('summary-content');
         
         let currentChatId = null;
         let unsubscribeFromMessages = null;
-        let activeConversationHistory = [];
 
         // Gestione Login/Logout
         loginForm.addEventListener('submit', (e) => {
@@ -192,11 +159,9 @@
             const q = query(messagesColRef, orderBy('createdAt'));
             unsubscribeFromMessages = onSnapshot(q, snapshot => {
                 activeChatMessages.innerHTML = '';
-                activeConversationHistory = [];
                 snapshot.forEach(doc => {
                     const msgData = doc.data();
                     displayMessage(msgData);
-                    activeConversationHistory.push(msgData);
                 });
                 activeChatMessages.scrollTop = activeChatMessages.scrollHeight;
             });
@@ -207,20 +172,25 @@
             e.preventDefault();
             const text = activeChatInput.value.trim();
             if (text && currentChatId) {
-                const messagesColRef = collection(db, 'chats', currentChatId, 'messages');
-                await addDoc(messagesColRef, {
-                    text: text,
-                    sender: 'technician',
-                    createdAt: serverTimestamp()
-                });
-                
-                const chatDocRef = doc(db, 'chats', currentChatId);
-                await updateDoc(chatDocRef, {
-                    lastMessage: `Risposta: ${text}`,
-                    lastUpdate: serverTimestamp()
-                });
-                
-                activeChatInput.value = '';
+                try {
+                    const sessionDocRef = doc(db, 'chats', currentChatId);
+                    const messagesColRef = collection(sessionDocRef, 'messages');
+                    
+                    await addDoc(messagesColRef, {
+                        text: text,
+                        sender: 'technician',
+                        createdAt: serverTimestamp()
+                    });
+                    
+                    await setDoc(sessionDocRef, {
+                        lastMessage: `Risposta: ${text}`,
+                        lastUpdate: serverTimestamp()
+                    }, { merge: true });
+                    
+                    activeChatInput.value = '';
+                } catch (error) {
+                    console.error("Errore durante l'invio della risposta:", error);
+                }
             }
         });
 
@@ -236,55 +206,30 @@
             el.textContent = message.text;
             activeChatMessages.appendChild(el);
         }
-
-        // Gestione Modale Riassunto
-        summarizeBtn.addEventListener('click', () => {
-            if (activeConversationHistory.length > 0) {
-                summaryModal.classList.remove('modal-inactive');
-                summaryModal.classList.add('modal-active');
-                fetchSummary(activeConversationHistory);
-            } else {
-                alert("Non ci sono messaggi da riassumere.");
-            }
-        });
-        
-        closeModalBtn.addEventListener('click', () => {
-             summaryModal.classList.add('modal-inactive');
-             summaryModal.classList.remove('modal-active');
-        });
-
-        async function fetchSummary(history) {
-            summaryContent.innerHTML = '<p class="text-center">Elaborazione riassunto...</p>';
-            
-            const formattedHistory = history.map(msg => `${msg.sender === 'visitor' ? 'Visitatore' : 'Tecnico'}: ${msg.text}`).join('\n');
-            const prompt = `Riassumi in modo conciso la seguente conversazione di supporto. Identifica il problema principale del visitatore e la soluzione o i passaggi successivi proposti dal tecnico.\n\nCONVERSAZIONE:\n${formattedHistory}`;
-            
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-
-            try {
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (!response.ok) throw new Error(`API error: ${response.statusText}`);
-
-                const result = await response.json();
-                if (result.candidates && result.candidates[0].content.parts[0].text) {
-                    summaryContent.textContent = result.candidates[0].content.parts[0].text;
-                } else {
-                    summaryContent.textContent = "Impossibile generare un riassunto.";
-                }
-
-            } catch (error) {
-                console.error("Errore nel generare il riassunto:", error);
-                summaryContent.textContent = "Si è verificato un errore durante la generazione del riassunto.";
-            }
-        }
-
     </script>
 </body>
 </html>
+```
+
+### Checklist Finale
+
+Per favore, segui questi passaggi finali per assicurarti che tutto sia allineato:
+
+1.  **Sostituisci i File su GitHub:**
+    * Copia il contenuto del primo riquadro e usalo per sostituire completamente il contenuto del tuo file `index.html` su GitHub.
+    * Copia il contenuto del secondo riquadro e usalo per sostituire completamente il contenuto del tuo file `dashboard.html` su GitHub.
+
+2.  **Verifica le Regole di Firebase:**
+    * Assicurati che le regole del tuo **Firestore Database** siano impostate correttamente per la chat di supporto:
+        ```
+        rules_version = '2';
+        service cloud.firestore {
+          match /databases/{database}/documents {
+            match /chats/{chatId}/{document=**} {
+              allow read, write: if true;
+            }
+          }
+        }
+        ```
+
+Dopo aver aggiornato i file su GitHub, attendi un paio di minuti che Netlify pubblichi le modifiche. Con questi file corretti, il sistema funzione
